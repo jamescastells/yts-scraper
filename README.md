@@ -5,13 +5,15 @@
 
 # YTS Scraper
 
+Forked from https://github.com/ozencb/yts-scraper and added a few QOA fixes.
+
 ![](Gif.gif)
 
 ## Description
-**yts-scraper** is a command-line tool for downloading .torrent files from YTS. 
+**yts-scraper** is a command-line tool for downloading .torrent files from YTS.
 It requires Python 3.0+.
 Note that this tool does not download the contents of a torrent file but downloads files with .torrent extension.
-You should use a Torrent client to open these files. 
+You should use a Torrent client to open these files.
 
 ## Installation
 Make sure that setuptools is installed on your system before running setup.
@@ -51,6 +53,8 @@ For instance, this command downloads every 1080p sci-fi movie and their posters 
 |`-c` or `--categorize-by`  |Creates a folder structure. Available options are: "rating", "genre", "rating-genre", "genre-rating"                                                                   |
 |`-y` or `--year-limit`     |Filters out movies older than the given value.                                                                                                                         |
 |`-p` or `--page`           |Can be used to skip ahead an amount of pages.                                                                                                                          |
+|`-v` or `--view-only`           |Displays on the terminal only the movies that were found, and does not download anything.                                                                                                |
+|`-t` or `--text`           |Searches the specified text in the query, downloading only the found ones.                                                                                           |
 
 ## Disclaimer
 This is a proof of concept tool built mainly to practice programming.
