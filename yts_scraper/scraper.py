@@ -28,6 +28,8 @@ class Scraper:
         self.imdb_id = args.imdb_id
         self.multiprocess = args.multiprocess
         self.csv_only = args.csv_only
+        self.view = args.view
+        self.text = args.text
 
         self.movie_count = None
         self.url = None
@@ -36,7 +38,6 @@ class Scraper:
         self.downloaded_movie_ids = None
         self.pbar = None
 
-
         # Set output directory
         if args.output:
             if not args.csv_only:
@@ -44,9 +45,12 @@ class Scraper:
             self.directory = os.path.join(os.path.curdir, self.output)
         else:
             if not args.csv_only:
-                os.makedirs(self.categorize.title(), exist_ok=True)
-            self.directory = os.path.join(os.path.curdir, self.categorize.title())
-
+                if (self.categorize != 'none'):
+                    os.makedirs(self.categorize.title(), exist_ok=True)
+            if (self.categorize != 'none'):
+                self.directory = os.path.join(os.path.curdir,self.categorize.title())
+            else:
+                self.directory = os.path.curdir
 
         # Args for downloading in reverse chronological order
         if args.sort_by == 'latest':
@@ -63,11 +67,12 @@ class Scraper:
     # Connect to API and extract initial data
     def __get_api_data(self):
         # Formatted URL string
-        url = '''https://yts.mx/api/v2/list_movies.json?quality={quality}&genre={genre}&minimum_rating={minimum_rating}&sort_by={sort_by}&order_by={order_by}&limit={limit}&page='''.format(
+        url = '''https://yts.mx/api/v2/list_movies.json?quality={quality}&genre={genre}&minimum_rating={minimum_rating}&sort_by={sort_by}&query_term={text}&order_by={order_by}&limit={limit}&page='''.format(
             quality=self.quality,
             genre=self.genre,
             minimum_rating=self.minimum_rating,
             sort_by=self.sort_by,
+            text=self.text,
             order_by=self.order_by,
             limit=self.limit
         )
@@ -132,38 +137,43 @@ class Scraper:
 
         range_ = range(int(self.page_arg), page_count)
 
+        if self.view == False:
+            print('Initializing download with these parameters:\n')
+            print('Directory:\t{}\nQuality:\t{}\nMovie Genre:\t{}\nMinimum Rating:\t{}\nCategorization:\t{}\nMinimum Year:\t{}\nStarting page:\t{}\nMovie posters:\t{}\nAppend IMDb ID:\t{}\nMultiprocess:\t{}\n'
+                  .format(
+                      self.directory,
+                      self.quality,
+                      self.genre,
+                      self.minimum_rating,
+                      self.categorize,
+                      self.year_limit,
+                      self.page_arg,
+                      str(self.poster),
+                      str(self.imdb_id),
+                      str(self.multiprocess)
+                      )
+                 )
 
-        print('Initializing download with these parameters:\n')
-        print('Directory:\t{}\nQuality:\t{}\nMovie Genre:\t{}\nMinimum Rating:\t{}\nCategorization:\t{}\nMinimum Year:\t{}\nStarting page:\t{}\nMovie posters:\t{}\nAppend IMDb ID:\t{}\nMultiprocess:\t{}\n'
-              .format(
-                  self.directory,
-                  self.quality,
-                  self.genre,
-                  self.minimum_rating,
-                  self.categorize,
-                  self.year_limit,
-                  self.page_arg,
-                  str(self.poster),
-                  str(self.imdb_id),
-                  str(self.multiprocess)
-                  )
-             )
-
+        text_desc = ""
         if self.movie_count <= 0:
             print('Could not find any movies with given parameters')
             sys.exit(0)
         else:
             print('Query was successful.')
-            print('Found {} movies. Download starting...\n'.format(self.movie_count))
+            if self.view == False:
+                print('Found {} movies. Download starting...\n'.format(self.movie_count))
+            else:
+                print('Found {} movies.'.format(self.movie_count))
 
         # Create progress bar
-        self.pbar = tqdm(
-            total=self.movie_count,
-            position=0,
-            leave=True,
-            desc='Downloading',
-            unit='Files'
-            )
+        if self.view == False:
+            self.pbar = tqdm(
+                total=self.movie_count,
+                position=0,
+                leave=True,
+                desc='Downloading',
+                unit='Files'
+                )
 
         # Multiprocess executor
         # Setting max_workers to None makes executor utilize CPU number * 5 at most
@@ -201,8 +211,9 @@ class Scraper:
                 for movie in movies:
                     self.__filter_torrents(movie)
 
-        self.pbar.close()
-        print('Download finished.')
+        if self.view == False:
+            self.pbar.close()
+            print('Download finished.')
 
 
     # Determine which .torrent files to download
@@ -220,16 +231,18 @@ class Scraper:
             return
 
 
-
         # Every torrent option for current movie
         torrents = movie.get('torrents')
         # Remove illegal file/directory characters
         movie_name = movie.get('title_long').translate({ord(i):None for i in "'/\:*?<>|"})
 
+        if self.view:
+            print(movie_name)
+
         # Used to multiple download messages for multi-folder categorization
         is_download_successful = False
 
-        if movie_id in self.downloaded_movie_ids:
+        if movie_id in self.downloaded_movie_ids or self.view:
             return
 
         # In case movie has no available torrents
@@ -261,14 +274,14 @@ class Scraper:
                 tqdm.write('Downloaded {} {}'.format(movie_name, quality.upper()))
                 self.pbar.update()
 
-
     # Creates a file path for each download
     def __build_path(self, movie_name, rating, quality, movie_genre, imdb_id):
         if self.csv_only:
             return
 
         directory = self.directory
-
+        if self.categorize == 'none':
+            pass
         if self.categorize == 'rating':
             directory += '/' + str(math.trunc(rating)) + '+'
         elif self.categorize == 'genre':
@@ -294,6 +307,8 @@ class Scraper:
     # Write binary content to .torrent file
     def __download_file(self, bin_content_tor, bin_content_img, path, movie_name, movie_id):
         if self.csv_only:
+            return
+        if self.view:
             return
 
         if self.existing_file_counter > 10 and not self.skip_exit_condition:

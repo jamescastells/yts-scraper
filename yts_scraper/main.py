@@ -82,8 +82,18 @@ def main():
                         type=str.lower,
                         required=False,
                         choices=['none', 'rating', 'genre', 'genre-rating', 'rating-genre'],
-                        default='rating',
+                        default='none',
                         const='rating',
+                        nargs='?')
+
+    parser.add_argument('-t', '--text',
+                        help='''Downloads only the movies with the specified text.
+                             ''',
+                        dest='text',
+                        type=str.lower,
+                        required=False,
+                        default='',
+                        const=True,
                         nargs='?')
 
     parser.add_argument('-y', '--year-limit',
@@ -144,6 +154,17 @@ def main():
                         required=False,
                         default=1,
                         const=1,
+                        nargs='?')
+
+    parser.add_argument('-v', '--view-only',
+                        help='''Append -v to show which movies were found.
+                                This will not download any file.
+                             ''',
+                        dest='view',
+                        type=bool,
+                        required=False,
+                        default=False,
+                        const=True,
                         nargs='?')
 
 
