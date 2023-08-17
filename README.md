@@ -32,9 +32,9 @@ To start scraping run:
 `yts-scraper [OPTIONS]`
 
 
-For instance, this command downloads every 1080p sci-fi movie and their posters with an IMDb score of 8 or higher, and store them in rating>genre structured subdirectories.
+For instance, this command downloads every 1080p sci-fi movie and their posters with an IMDb score of 8 or higher, that has "spider" in its title, and store them in rating>genre structured subdirectories.
 
-`yts-scraper -q 1080p -g sci-fi -r 8 -c rating-genre -b`
+`yts-scraper -q 1080p -g sci-fi -r 8 -c rating-genre -b -t 'spider'`
 
 ## Options
 
