@@ -131,14 +131,16 @@ class Scraper:
         # to check if it's been downloaded before
         self.downloaded_movie_ids = []
 
-        # Calculate page count and make sure that it doesn't
-        # get the value of 1 to prevent range(1, 1)
-        if math.trunc(self.movie_count / self.limit) + 1 == 1:
-            page_count = 2
+        if self.movie_count / self.limit <= 1:
+            page_count = self.page_arg + 1                          # only one page, so range(1,2)
         else:
-            page_count = math.trunc(self.movie_count / self.limit) + 1
+            page_count = int(self.movie_count/self.limit)               # more than one page
+            if int(self.movie_count) % int(self.limit) > 0:           # add one page for excedent
+                page_count = page_count + 1
+            page_count = self.page_arg + page_count                     #range(1,pages+1)
 
         range_ = range(int(self.page_arg), page_count)
+
 
         if self.view == False:
             print('Initializing download with these parameters:\n')
@@ -162,11 +164,17 @@ class Scraper:
             print('Could not find any movies with given parameters')
             sys.exit(0)
         else:
-            print('Query was successful.')
-            if self.view == False:
-               print('Found {} movies. Download starting...\n'.format(self.movie_count))
-            else:
-                print('Found {} movies.'.format(self.movie_count))
+            print('Obtaining results...')
+            #if self.view == False:
+            #    if self.quality == "all":
+            #        print('Found {} movies. Download starting...\n'.format(self.movie_count))
+            #    else:
+            #        print('Found {} torrents. Download starting...\n'.format(self.movie_count))
+            #else:
+            #    if self.quality == "all":
+            #        print('Found {} movies.'.format(self.movie_count))
+            #    else:
+            #        print('Found {} torrents.'.format(self.movie_count))
 
         # Create progress bar
         if self.view == False:
@@ -217,10 +225,16 @@ class Scraper:
                     list_index = list_index + 1
                     movie = movies[index]
                     movie_torrent = self.__filter_torrents(movie,list_index)
+                    if movie_torrent == None:
+                        list_index = list_index - 1
                     self.__delete_duplicates(movies,movie_torrent)
                     index = index + 1
                     if self.quality == "all" and movie_torrent != None:         # still more torrents to solve
                         index = index - 1
+                
+        
+        if list_index == 0:
+            print('No movies match the specified parameters.')
 
         if self.view == False:
             self.pbar.close()
@@ -259,9 +273,10 @@ class Scraper:
         movie_quality = movie_torrent.get('quality')
         movie_size = movie_torrent.get('size')
         movie_type = movie_torrent.get('type').title()
+        torrent_hash = movie_torrent.get('hash')
 
         if year < self.year_limit:
-            return
+            return None
 
         # Every torrent option for current movie
         torrents = movie.get('torrents')
@@ -269,7 +284,7 @@ class Scraper:
         movie_name = movie.get('title_long').translate({ord(i):None for i in "'/\:*?<>|"})
 
         if self.view:
-            print('#' + str(index) + ' ' + movie_name + ' (' + movie_type + ', ' + movie_quality +', ' + movie_size+')')
+            print('#' + str(index) + ' ' + movie_name + ' (' + movie_type + ', ' + movie_quality +', ' + movie_size+') [' + torrent_hash + ']')
 
         # Used to multiple download messages for multi-folder categorization
         is_download_successful = False
