@@ -30,13 +30,16 @@ class Scraper:
         self.csv_only = args.csv_only
         self.view = args.view
         self.text = args.text
+        self.format = args.format
 
-        self.movie_count = None
         self.url = None
         self.existing_file_counter = None
         self.skip_exit_condition = None
         self.downloaded_movie_ids = None
         self.pbar = None
+        self.torrent_count = 0
+        self.movie_count = 0
+        self.movies = []
 
         # Set output directory
 
@@ -66,60 +69,6 @@ class Scraper:
         # YTS API has a limit of 50 entries
         self.limit = 50
 
-
-    # Connect to API and extract initial data
-    def __get_api_data(self):
-        # Formatted URL string
-        url = '''https://yts.mx/api/v2/list_movies.json?quality={quality}&genre={genre}&minimum_rating={minimum_rating}&sort_by={sort_by}&query_term={text}&order_by={order_by}&limit={limit}&page='''.format(
-            quality=self.quality,
-            genre=self.genre,
-            minimum_rating=self.minimum_rating,
-            sort_by=self.sort_by,
-            text=self.text,
-            order_by=self.order_by,
-            limit=self.limit
-        )
-
-        # Generate random user agent header
-        try:
-            user_agent = UserAgent()
-            headers = {'User-Agent': user_agent.random}
-        except:
-            print('Error occurred during fake user agent generation.')
-
-        # Exception handling for connection errors
-        try:
-            req = requests.get(url, timeout=5, verify=True, headers=headers)
-            req.raise_for_status()
-        except requests.exceptions.HTTPError as errh:
-            print('HTTP Error:', errh)
-            sys.exit(0)
-        except requests.exceptions.ConnectionError as errc:
-            print('Error Connecting:', errc)
-            sys.exit(0)
-        except requests.exceptions.Timeout as errt:
-            print('Timeout Error:', errt)
-            sys.exit(0)
-        except requests.exceptions.RequestException as err:
-            print('There was an error.', err)
-            sys.exit(0)
-
-        # Exception handling for JSON decoding errors
-        try:
-            data = req.json()
-        except json.decoder.JSONDecodeError:
-            print('Could not decode JSON')
-
-
-        # Adjust movie count according to starting page
-        if self.page_arg == 1:
-            movie_count = data.get('data').get('movie_count')
-        else:
-            movie_count = (data.get('data').get('movie_count')) - ((self.page_arg - 1) * self.limit)
-
-        self.movie_count = movie_count
-        self.url = url
-
     def __initialize_download(self):
         # Used for exit/continue prompt that's triggered after 10 existing files
         self.existing_file_counter = 0
@@ -130,17 +79,6 @@ class Scraper:
         # IDs of downloaded movie is stored in this array
         # to check if it's been downloaded before
         self.downloaded_movie_ids = []
-
-        if self.movie_count / self.limit <= 1:
-            page_count = self.page_arg + 1                          # only one page, so range(1,2)
-        else:
-            page_count = int(self.movie_count/self.limit)               # more than one page
-            if int(self.movie_count) % int(self.limit) > 0:           # add one page for excedent
-                page_count = page_count + 1
-            page_count = self.page_arg + page_count                     #range(1,pages+1)
-
-        range_ = range(int(self.page_arg), page_count)
-
 
         if self.view == False:
             print('Initializing download with these parameters:\n')
@@ -160,26 +98,20 @@ class Scraper:
                  )
 
         text_desc = ""
-        if self.movie_count <= 0:
+        if self.torrent_count <= 0:
             print('Could not find any movies with given parameters')
             sys.exit(0)
         else:
             print('Obtaining results...')
-            #if self.view == False:
-            #    if self.quality == "all":
-            #        print('Found {} movies. Download starting...\n'.format(self.movie_count))
-            #    else:
-            #        print('Found {} torrents. Download starting...\n'.format(self.movie_count))
-            #else:
-            #    if self.quality == "all":
-            #        print('Found {} movies.'.format(self.movie_count))
-            #    else:
-            #        print('Found {} torrents.'.format(self.movie_count))
+            if self.view == False:
+                print('Found {} torrents. Download starting...\n'.format(self.torrent_count))
+            else:
+                print('Found {} torrents.'.format(self.torrent_count))
 
         # Create progress bar
         if self.view == False:
             self.pbar = tqdm(
-                total=self.movie_count,
+                total=self.torrent_count,
                 position=0,
                 leave=True,
                 desc='Downloading',
@@ -192,46 +124,32 @@ class Scraper:
 
         list_index = 0
 
-        for page in range_:
-            url = '{}{}'.format(self.url, str(page))
-
-            # Generate random user agent header
-            try:
-                user_agent = UserAgent()
-                headers = {'User-Agent': user_agent.random}
-            except:
-                print('Error occurred during fake user agent generation.')
-
-            # Send request to API
-            page_response = requests.get(url, timeout=5, verify=True, headers=headers).json()
-
-            movies = page_response.get('data').get('movies')
+        movies = self.movies
             #print(movies)
 
             # Movies found on current page
 
-            if self.multiprocess:
+        if self.multiprocess:
                 # Wrap tqdm around executor to update pbar with every process
-                tqdm(
-                    executor.map(self.__filter_torrents, movies),
-                    total=self.movie_count,
-                    position=0,
-                    leave=True
-                    )
+            tqdm(
+                executor.map(self.__filter_torrents, movies),
+                total=self.torrent_count,
+                position=0,
+                leave=True
+                )
 
-            else:
-                index = 0
-                while (index < len(movies)):
-                    list_index = list_index + 1
-                    movie = movies[index]
-                    movie_torrent = self.__filter_torrents(movie,list_index)
-                    if movie_torrent == None:
-                        list_index = list_index - 1
-                    self.__delete_duplicates(movies,movie_torrent)
-                    index = index + 1
-                    if self.quality == "all" and movie_torrent != None:         # still more torrents to solve
-                        index = index - 1
-                
+        else:
+            index = 0
+            while (index < len(movies)):
+                list_index = list_index + 1
+                movie = movies[index]
+                movie_torrent = self.__filter_torrents(movie,list_index)
+                if movie_torrent == None:
+                    list_index = list_index - 1
+                self.__delete_duplicates(movies,movie_torrent)
+                index = index + 1
+                if movie_torrent != None:         # still more torrents to solve
+                    index = index - 1                
         
         if list_index == 0:
             print('No movies match the specified parameters.')
@@ -274,9 +192,6 @@ class Scraper:
         movie_size = movie_torrent.get('size')
         movie_type = movie_torrent.get('type').title()
         torrent_hash = movie_torrent.get('hash')
-
-        if year < self.year_limit:
-            return None
 
         # Every torrent option for current movie
         torrents = movie.get('torrents')
@@ -424,5 +339,68 @@ class Scraper:
             tqdm.write('Invalid input. Enter "Y" or "N".')
 
     def download(self):
-        self.__get_api_data()
+        self.__filterMoviesAndObtainTorrents()
         self.__initialize_download()
+
+    def __filterMoviesAndObtainTorrents(self):
+
+        self.url = '''https://yts.mx/api/v2/list_movies.json?genre={genre}&minimum_rating={minimum_rating}&sort_by={sort_by}&query_term={text}&order_by={order_by}&limit={limit}&page='''.format(
+            genre=self.genre,
+            minimum_rating=self.minimum_rating,
+            sort_by=self.sort_by,
+            text=self.text,
+            order_by=self.order_by,
+            limit=self.limit
+        )
+
+        print('Obtaining torrents...')
+        numberOfTorrents = 0
+        i = 1
+        while(True):
+            url = '{}{}'.format(self.url, str(i))
+            # Generate random user agent header
+            try:
+                user_agent = UserAgent()
+                headers = {'User-Agent': user_agent.random}
+            except:
+                print('Error occurred during fake user agent generation.')
+            page_response = requests.get(url, timeout=5, verify=True, headers=headers).json()
+            movies = page_response.get('data').get('movies')
+            if movies == None:
+                self.torrent_count = numberOfTorrents
+                return
+            j = 0
+            while(j<len(movies)):
+                movie = movies[j]
+                if (movie.get('year')<self.year_limit):
+                    movies.remove(movie)
+                    j = j - 1
+                if self.format != "all":                    # remove all that's not the quality specified
+                    torrents = movie.get('torrents')
+                    x = 0
+                    while (x < len(torrents)):
+                        torrent = torrents[x]
+                        if (torrent.get('type') != self.format):
+                            torrents.remove(torrent)
+                            x = x - 1
+                        x = x + 1
+                    if len(torrents) == 0:
+                        movies.remove(movie)
+                        j = j - 1
+                if self.quality != "all" and movie in movies:       # remove all that's not the format specified  
+                    torrents = movie.get('torrents')
+                    x = 0
+                    while (x < len(torrents)):
+                        torrent = torrents[x]
+                        if (torrent.get('quality') != self.quality):
+                            torrents.remove(torrent)
+                            x = x - 1
+                        x = x + 1
+                    if len(torrents) == 0:
+                        movies.remove(movie)
+                        j = j - 1
+                j = j +1
+            for movie in movies:
+                numberOfTorrents = numberOfTorrents + len(movie.get('torrents'))
+            self.movies = self.movies + movies
+            i = i + 1

@@ -72,11 +72,23 @@ def main():
                         default='latest',
                         const='latest',
                         nargs='?')
+    
+    parser.add_argument('-f', '--format',
+                        help='''Searches for a specific format.
+                                Valid arguments are: "all", "bluray", "web"
+                             ''',
+                        dest='format',
+                        type=str.lower,
+                        required=False,
+                        choices=['all', 'bluray', 'web'],
+                        default='all',
+                        const='all',
+                        nargs='?')
 
     parser.add_argument('-c', '--categorize-by',
                         help='''Creates a folder structure.
                                 Valid arguments are: "rating", "genre",
-                                "rating-genre","genre-rating
+                                "rating-genre","genre-rating"
                              ''',
                         dest='categorize_by',
                         type=str.lower,
