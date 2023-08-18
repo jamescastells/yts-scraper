@@ -164,7 +164,7 @@ class Scraper:
         else:
             print('Query was successful.')
             if self.view == False:
-                print('Found {} movies. Download starting...\n'.format(self.movie_count))
+               print('Found {} movies. Download starting...\n'.format(self.movie_count))
             else:
                 print('Found {} movies.'.format(self.movie_count))
 
@@ -182,6 +182,8 @@ class Scraper:
         # Setting max_workers to None makes executor utilize CPU number * 5 at most
         executor = ThreadPoolExecutor(max_workers=None)
 
+        list_index = 0
+
         for page in range_:
             url = '{}{}'.format(self.url, str(page))
 
@@ -196,10 +198,9 @@ class Scraper:
             page_response = requests.get(url, timeout=5, verify=True, headers=headers).json()
 
             movies = page_response.get('data').get('movies')
+            #print(movies)
 
             # Movies found on current page
-            if not movies:
-                print('Could not find any movies on this page.\n')
 
             if self.multiprocess:
                 # Wrap tqdm around executor to update pbar with every process
@@ -211,16 +212,31 @@ class Scraper:
                     )
 
             else:
-                for movie in movies:
-                    self.__filter_torrents(movie)
+                index = 0
+                while (index < len(movies)):
+                    list_index = list_index + 1
+                    movie = movies[index]
+                    movie_torrent = self.__filter_torrents(movie,list_index)
+                    self.__delete_duplicates(movies,movie_torrent)
+                    index = index + 1
+                    if self.quality == "all" and movie_torrent != None:         # still more torrents to solve
+                        index = index - 1
 
         if self.view == False:
             self.pbar.close()
             print('Download finished.')
 
 
+    def __delete_duplicates(self,movies,movie_torrent):
+        for movie in movies:
+            torrents = movie.get('torrents')
+            for torrent in torrents:
+                if torrent == movie_torrent:
+                    torrents.remove(torrent)
+
+
     # Determine which .torrent files to download
-    def __filter_torrents(self, movie):
+    def __filter_torrents(self, movie, index):
         movie_id = str(movie.get('id'))
         movie_rating = movie.get('rating')
         movie_genres = movie.get('genres') if movie.get('genres') else ['None']
@@ -229,10 +245,23 @@ class Scraper:
         year = movie.get('year')
         language = movie.get('language')
         yts_url = movie.get('url')
+        movie_torrents = movie.get('torrents')
+
+        if len(movie_torrents) == 0:
+            return None
+
+        if self.quality != 'all':
+            for movie_torrent in movie_torrents:
+                if movie_torrent.get('quality') == self.quality:
+                    break
+        else:
+            movie_torrent = movie_torrents[0]
+        movie_quality = movie_torrent.get('quality')
+        movie_size = movie_torrent.get('size')
+        movie_type = movie_torrent.get('type').title()
 
         if year < self.year_limit:
             return
-
 
         # Every torrent option for current movie
         torrents = movie.get('torrents')
@@ -240,13 +269,13 @@ class Scraper:
         movie_name = movie.get('title_long').translate({ord(i):None for i in "'/\:*?<>|"})
 
         if self.view:
-            print(movie_name)
+            print('#' + str(index) + ' ' + movie_name + ' (' + movie_type + ', ' + movie_quality +', ' + movie_size+')')
 
         # Used to multiple download messages for multi-folder categorization
         is_download_successful = False
 
         if movie_id in self.downloaded_movie_ids or self.view:
-            return
+            return movie_torrent
 
         # In case movie has no available torrents
         if torrents is None:
@@ -258,27 +287,31 @@ class Scraper:
         # Iterate through available torrent files
         for torrent in torrents:
             quality = torrent.get('quality')
+            movie_type = torrent.get('type')
             torrent_url = torrent.get('url')
+            torrent_hash = torrent.get('hash')
             if self.categorize and self.categorize != 'rating':
                 if self.quality == 'all' or self.quality == quality:
                     bin_content_tor = (requests.get(torrent.get('url'))).content
 
                     for genre in movie_genres:
-                        path = self.__build_path(movie_name, movie_rating, quality, genre, imdb_id)
+                        path = self.__build_path(movie_name, movie_rating, quality, genre, imdb_id, torrent_hash, movie_type)
                         is_download_successful = self.__download_file(bin_content_tor, bin_content_img, path, movie_name, movie_id)
             else:
                 if self.quality == 'all' or self.quality == quality:
                     self.__log_csv(movie_id, imdb_id, movie_name_short, year, language, movie_rating, quality, yts_url, torrent_url)
                     bin_content_tor = (requests.get(torrent_url)).content
-                    path = self.__build_path(movie_name, movie_rating, quality, None, imdb_id)
+                    path = self.__build_path(movie_name, movie_rating, quality, None, imdb_id, torrent_hash, movie_type)
                     is_download_successful = self.__download_file(bin_content_tor, bin_content_img, path, movie_name, movie_id)
 
             if is_download_successful and self.quality == 'all' or self.quality == quality:
-                tqdm.write('Downloaded {} {}'.format(movie_name, quality.upper()))
+                tqdm.write('Downloaded {} ({}, {}) [{}]'.format(movie_name, movie_type.title(), quality, torrent_hash))
                 self.pbar.update()
 
+        return movie_torrent
+
     # Creates a file path for each download
-    def __build_path(self, movie_name, rating, quality, movie_genre, imdb_id):
+    def __build_path(self, movie_name, rating, quality, movie_genre, imdb_id, torrent_hash, movie_type):
         if self.csv_only:
             return
 
@@ -300,9 +333,11 @@ class Scraper:
         os.makedirs(directory, exist_ok=True)
 
         if self.imdb_id:
-            filename = '{} {} - {}'.format(movie_name, quality, imdb_id)
+            filename = '{} {} {} - {}'.format(movie_name, movie_type.title(), quality, imdb_id)
         else:
-            filename = '{} {}'.format(movie_name, quality)
+            filename = '{} {} {}'.format(movie_name, movie_type.title(), quality)
+
+        filename = filename + ' (' + torrent_hash + ')'
 
         path = os.path.join(directory, filename)
         return path
@@ -319,6 +354,7 @@ class Scraper:
 
         if os.path.isfile(path):
             tqdm.write('{}: File already exists. Skipping...'.format(movie_name))
+            print('file already exists')
             self.existing_file_counter += 1
             return False
 
