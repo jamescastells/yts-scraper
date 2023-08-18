@@ -46,7 +46,7 @@ For instance, this command downloads every 1080p sci-fi movie and their posters 
 |`-m` or `--multiprocess`   |Append -m to download using multiprocessor. This option makes the process significantly faster but is prone to raising flags and causing server to deny requests.      |
 |`--csv-only`               |Append --csv-only to log scraped data ONLY to a CSV file. With this argument torrent files will not be downloaded.                                                     |
 |`-i` or `--imdb-id`        |Append -i to append IMDb ID to filename.                                                                                                                               |
-|`-q` or `--quality`        |Video quality. Available options are: "all", "720p", "1080p", "3d"                                                                                                     |
+|`-q` or `--quality`        |Video quality. Available options are: "all", "720p", "1080p", "3d". Default is "1080p".                                                                                                          |
 |`-g` or `--genre`          |Movie genre. Available options are: "all", "action", "adventure", "animation", "biography", "comedy", "crime", "documentary", "drama", "family", "fantasy", "film-noir", "game-show", "history", "horror", "music", "musical", "mystery", "news", "reality-tv", "romance", "sci-fi", "sport", "talk-show", "thriller", "war", "western".|
 |`-r` or `--rating`         |Minimum rating score. Enter an integer between 0 and 9.                                                                                                                |
 |`-s` or `--sort-by`        |Download order. Available options are: "title", "year", "rating", "latest", "peers", "seeds", "download_count", "like_count", "date_added"                             |
@@ -55,7 +55,7 @@ For instance, this command downloads every 1080p sci-fi movie and their posters 
 |`-p` or `--page`           |Can be used to skip ahead an amount of pages.                                                                                                                          |
 |`-v` or `--view-only`           |Displays on the terminal only the movies that were found, and does not download anything.                                                                                                |
 |`-t` or `--text`           |Searches the specified text in the query, downloading only the found ones.                                                                                           |
-|`-f` or `--format`           |Searches only the format of the file. Available options are "all", "bluray", "web"                                                                                           |
+|`-f` or `--format`           |Searches only the format of the file. Available options are "all", "bluray", "web". Default is "bluray".                                                                                           |
 
 ## Disclaimer
 This is a proof of concept tool built mainly to practice programming.

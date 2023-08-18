@@ -81,7 +81,7 @@ def main():
                         type=str.lower,
                         required=False,
                         choices=['all', 'bluray', 'web'],
-                        default='all',
+                        default='bluray',
                         const='all',
                         nargs='?')
 
