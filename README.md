@@ -55,6 +55,7 @@ For instance, this command downloads every 1080p sci-fi movie and their posters 
 |`-p` or `--page`           |Can be used to skip ahead an amount of pages.                                                                                                                          |
 |`-v` or `--view-only`           |Displays on the terminal only the movies that were found, and does not download anything.                                                                                                |
 |`-t` or `--text`           |Searches the specified text in the query, downloading only the found ones.                                                                                           |
+|`-f` or `--format`           |Searches only the format of the file. Available options are "all", "bluray", "web"                                                                                           |
 
 ## Disclaimer
 This is a proof of concept tool built mainly to practice programming.
