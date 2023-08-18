@@ -39,18 +39,21 @@ class Scraper:
         self.pbar = None
 
         # Set output directory
-        if args.output:
-            if not args.csv_only:
-                os.makedirs(self.output, exist_ok=True)
-            self.directory = os.path.join(os.path.curdir, self.output)
-        else:
-            if not args.csv_only:
-                if (self.categorize != 'none'):
-                    os.makedirs(self.categorize.title(), exist_ok=True)
-            if (self.categorize != 'none'):
-                self.directory = os.path.join(os.path.curdir,self.categorize.title())
+
+        if args.view == False:
+
+            if args.output:
+                if not args.csv_only:
+                    os.makedirs(self.output, exist_ok=True)
+                self.directory = os.path.join(os.path.curdir, self.output)
             else:
-                self.directory = os.path.curdir
+                if not args.csv_only:
+                    if (self.categorize != 'none'):
+                        os.makedirs(self.categorize.title(), exist_ok=True)
+                if (self.categorize != 'none'):
+                    self.directory = os.path.join(os.path.curdir,self.categorize.title())
+                else:
+                    self.directory = os.path.curdir
 
         # Args for downloading in reverse chronological order
         if args.sort_by == 'latest':
