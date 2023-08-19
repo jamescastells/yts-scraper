@@ -31,11 +31,6 @@ To start scraping run:
 
 `yts-scraper [OPTIONS]`
 
-
-For instance, this command downloads every 1080p sci-fi movie and their posters with an IMDb score of 8 or higher, that has "spider" in its title, ripped from a Bluray, and store them in rating>genre structured subdirectories.
-
-`yts-scraper -q 1080p -g sci-fi -r 8 -c rating-genre -b -t 'spider' -f bluray`
-
 ## Options
 
 | Commands                  | Description                                                                                                                                                           |
@@ -44,7 +39,7 @@ For instance, this command downloads every 1080p sci-fi movie and their posters 
 |`-o` or `--output`         |Output directory                                                                                                                                                       |
 |`-b` or `--background`     |Append "-b" to download movie posters. This will pack .torrent file and the image together in a folder.                                                                |
 |`-m` or `--multiprocess`   |Append -m to download using multiprocessor. This option makes the process significantly faster but is prone to raising flags and causing server to deny requests.      |
-|`--csv-only`               |Append --csv-only to log scraped data ONLY to a CSV file. With this argument torrent files will not be downloaded.                                                     |
+|`--csv-only`               |Append --csv-only to log scraped data ONLY to a CSV file. With this argument torrent files will not be downloaded. The output file is named "YTS-Scraper.csv".                                                    |
 |`-i` or `--imdb-id`        |Append -i to append IMDb ID to filename.                                                                                                                               |
 |`-q` or `--quality`        |Video quality. Available options are: "all", "720p", "1080p", "3d". Default is "1080p".                                                                                                          |
 |`-g` or `--genre`          |Movie genre. Available options are: "all", "action", "adventure", "animation", "biography", "comedy", "crime", "documentary", "drama", "family", "fantasy", "film-noir", "game-show", "history", "horror", "music", "musical", "mystery", "news", "reality-tv", "romance", "sci-fi", "sport", "talk-show", "thriller", "war", "western".|
@@ -56,6 +51,29 @@ For instance, this command downloads every 1080p sci-fi movie and their posters 
 |`-v` or `--view-only`           |Displays on the terminal only the movies that were found, and does not download anything.                                                                                                |
 |`-t` or `--text`           |Searches the specified text in the query, downloading only the found ones.                                                                                           |
 |`-f` or `--format`           |Searches only the format of the file. Available options are "all", "bluray", "web". Default is "bluray".                                                                                           |
+
+
+## Examples
+
+This commands downloads every movie with a rating with 9 or more:
+
+`yts-scraper -r 9`
+
+This command returns in a list, but does not download, all the "Captain America" movies in all formats and qualities:
+
+`yts-scraper -t 'Captain America' -f "all" -q "all" -v`
+
+This command downloads every 1080p sci-fi movie and their posters with an IMDb score of 8 or higher, that has "spider" in its title, ripped from a Bluray, and store them in rating>genre structured subdirectories.
+
+`yts-scraper -q 1080p -g sci-fi -r 8 -c rating-genre -b -t 'spider' -f bluray`
+
+This commands downloads every animation movie since 1990, which has a rating of 7 or more, puts it in a folder named "movies", which itself contains folders organized by rating; downloads its respective poster, and does everything in a multi-threaded fashion.
+
+`yts-scraper -g animation -r 7 -y 1990 -o "movies" -b -c "rating" -m`
+
+This command saves in a CSV file information of all the family movies since 2000 with a rating of 6 or more:
+
+`yts-scraper -g family -r 6 -y 2000 --csv-only`
 
 ## Disclaimer
 This is a proof of concept tool built mainly to practice programming.

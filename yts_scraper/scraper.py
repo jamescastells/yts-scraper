@@ -118,7 +118,7 @@ class Scraper:
         movies = self.movies
 
         if self.multiprocess:
-            pool = ThreadPool(len(movies))
+            pool = ThreadPool(10)
             pool.map(self.__downloadMovie, movies)
         else:
             for movie in movies:
@@ -268,6 +268,8 @@ class Scraper:
 
     def __filterMoviesAndObtainTorrents(self):
 
+        print('Obtaining torrents...')
+
         self.url = '''https://yts.mx/api/v2/list_movies.json?genre={genre}&minimum_rating={minimum_rating}&sort_by={sort_by}&query_term={text}&order_by={order_by}&limit={limit}&page='''.format(
             genre=self.genre,
             minimum_rating=self.minimum_rating,
@@ -330,4 +332,5 @@ class Scraper:
             for movie in movies:
                 numberOfTorrents = numberOfTorrents + len(movie.get('torrents'))
             self.movies = self.movies + movies
+            print('Obtained {} torrents so far...'.format(str(numberOfTorrents)))
             i = i + 1
