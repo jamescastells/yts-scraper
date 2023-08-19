@@ -317,7 +317,7 @@ class Scraper:
                 if (movie.get('year')<self.year_limit):
                     movies.remove(movie)
                     j = j - 1
-                if self.format != "all":                    # remove all that's not the quality specified
+                if self.format != "all" and movie in movies:                    # remove all that's not the quality specified
                     torrents = movie.get('torrents')
                     x = 0
                     while (x < len(torrents)):
