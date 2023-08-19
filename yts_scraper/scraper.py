@@ -3,10 +3,15 @@ import sys
 import math
 import json
 import csv
-from concurrent.futures.thread import ThreadPoolExecutor
 import requests
+import multiprocessing
 from tqdm import tqdm
 from fake_useragent import UserAgent
+from multiprocessing.dummy import Pool as ThreadPool
+
+def a(b):
+    while True:
+        print(b)
 
 class Scraper:
     """
@@ -109,6 +114,7 @@ class Scraper:
 
         # Create progress bar
         if self.view == False and self.csv_only == False:
+
             self.pbar = tqdm(
                 total=self.torrent_count,
                 position=0,
@@ -117,35 +123,20 @@ class Scraper:
                 unit='Files'
                 )
 
-        # Multiprocess executor
-        # Setting max_workers to None makes executor utilize CPU number * 5 at most
-        executor = ThreadPoolExecutor(max_workers=None)
-
-        list_index = 0
-
         movies = self.movies
-            #print(movies)
-
-            # Movies found on current page
 
         if self.multiprocess:
-                # Wrap tqdm around executor to update pbar with every process
-            tqdm(
-                executor.map(self.__filter_torrents, movies),
-                total=self.torrent_count,
-                position=0,
-                leave=True
-                )
-
+            pool = ThreadPool(len(movies))
+            pool.map(self.__downloadMovie, movies)
         else:
             for movie in movies:
-                self.__download(movie)           
+                self.__downloadMovie(movie)           
 
         if self.view == False and self.csv_only == False:
             self.pbar.close()
             print('Download finished.')
     
-    def __download(self,movie):
+    def __downloadMovie(self,movie):
         movie_id = str(movie.get('id'))
         movie_rating = movie.get('rating')
         movie_genres = movie.get('genres') if movie.get('genres') else ['None']
@@ -295,7 +286,6 @@ class Scraper:
             limit=self.limit
         )
 
-        print('Obtaining torrents...')
         numberOfTorrents = 0
         i = 1
         while(True):
