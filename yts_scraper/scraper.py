@@ -40,7 +40,6 @@ class Scraper:
         self.url = None
         self.existing_file_counter = None
         self.skip_exit_condition = None
-        self.downloaded_movie_ids = None
         self.pbar = None
         self.torrent_count = 0
         self.movies = []
@@ -78,12 +77,6 @@ class Scraper:
         self.existing_file_counter = 0
         self.skip_exit_condition = False
 
-        # YTS API sometimes returns duplicate objects and
-        # the script tries to download the movie more than once.
-        # IDs of downloaded movie is stored in this array
-        # to check if it's been downloaded before
-        self.downloaded_movie_ids = []
-
         if self.view == False and self.csv_only == False:
             print('Initializing download with these parameters:\n')
             print('Directory:\t{}\nQuality:\t{}\nMovie Genre:\t{}\nMinimum Rating:\t{}\nCategorization:\t{}\nMinimum Year:\t{}\nStarting page:\t{}\nMovie posters:\t{}\nAppend IMDb ID:\t{}\nMultiprocess:\t{}\n'
@@ -101,7 +94,6 @@ class Scraper:
                       )
                  )
 
-        text_desc = ""
         if self.torrent_count <= 0:
             print('Could not find any movies with given parameters')
             sys.exit(0)
@@ -227,7 +219,6 @@ class Scraper:
             with open(path + '.jpg', 'wb') as torrent:
                 torrent.write(bin_content_img)
 
-        self.downloaded_movie_ids.append(movie_id)
         self.existing_file_counter = 0
         return True
 
@@ -296,7 +287,11 @@ class Scraper:
                 headers = {'User-Agent': user_agent.random}
             except:
                 print('Error occurred during fake user agent generation.')
-            page_response = requests.get(url, timeout=5, verify=True, headers=headers).json()
+            try:
+                page_response = requests.get(url, timeout=5, verify=True, headers=headers).json()
+            except:
+                print('There was an error connecting to yts. Try again.')
+                return
             movies = page_response.get('data').get('movies')
             if movies == None:
                 self.torrent_count = numberOfTorrents
