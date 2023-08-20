@@ -8,7 +8,9 @@ import requests
 from tqdm import tqdm
 from fake_useragent import UserAgent
 from multiprocessing.dummy import Pool as ThreadPool
-from tabulate import tabulate
+import tabulate
+
+tabulate.PRESERVE_WHITESPACE = True
 
 class Scraper:
     """
@@ -108,12 +110,12 @@ class Scraper:
 
             self.pbar = tqdm(
                 total=self.torrent_count,
-                position=0,
+                position=1,
                 leave=True,
                 desc='Downloading',
                 unit='Files'
                 )
-
+            self.pbar.write(tabulate.tabulate(tabular_data=[],headers=['#'.ljust(len(str(self.torrent_count))-2), 'Movie name'.ljust(40), 'Year'.ljust(5), 'Format'.ljust(5), 'Quality'.ljust(5),'Size'.ljust(8),'Hash'.ljust(38)], tablefmt='orgtbl'))
         movies = self.movies
 
         if self.multiprocess:
@@ -122,13 +124,14 @@ class Scraper:
         else:
             for movie in movies:
                 self.__downloadMovie(movie)
+        print()                               # emtpy line to remove a double progress line
 
         if self.view:
-            print(tabulate(self.table, headers='firstrow', tablefmt='fancy_grid'))           
+            print(tabulate.tabulate(self.table, headers='firstrow', tablefmt='fancy_grid') + '\n')        
 
         if self.view == False and self.csv_only == False:
             self.pbar.close()
-            print('Download finished.')
+            print('\nDownload finished.')
     
     def __downloadMovie(self,movie):
         movie_id = str(movie.get('id'))
@@ -148,8 +151,7 @@ class Scraper:
             torrent_hash = movie_torrent.get('hash')
             torrent_url = movie_torrent.get('url')
             if self.view:
-                #print('#' + str(self.torrentNumber) + ' ' + movie_name + ' (' + movie_type + ', ' + movie_quality +', ' + movie_size+') [' + torrent_hash + ']')
-                self.table.append([str(self.torrentNumber),movie_name_short,year,movie_type,movie_quality,movie_size,torrent_hash])
+                self.table.append([str(self.torrentNumber),movie_name_short[:42],year,movie_type,movie_quality,movie_size,torrent_hash])
             if self.csv_only:
                 self.__log_csv(movie_id, imdb_id, movie_name_short, year, language, movie_rating, movie_quality, yts_url, torrent_url, movie_type)
             if self.view == False and self.csv_only == False:
@@ -164,7 +166,7 @@ class Scraper:
                     path = self.__build_path(movie_name, movie_rating, movie_quality, None, imdb_id, torrent_hash, movie_type)
                     is_download_successful = self.__download_file(bin_content_tor, bin_content_img, path, movie_name, movie_id)
                 if is_download_successful:
-                    tqdm.write('Downloaded {} ({}, {}) [{}]'.format(movie_name, movie_type.title(), movie_quality, torrent_hash))
+                    self.pbar.write(tabulate.tabulate(tabular_data=[[str(self.torrentNumber).ljust(max(len(str(self.torrent_count))-3,3)), movie_name_short.ljust(42)[:42], str(year).ljust(7), movie_type.ljust(8), movie_quality.ljust(9),movie_size.ljust(10),torrent_hash.ljust(40)[:40]]], tablefmt='orgtbl'))
                     self.pbar.update()
             self.torrentNumber += 1
 
@@ -211,7 +213,7 @@ class Scraper:
             self.__prompt_existing_files()
 
         if os.path.isfile(path):
-            tqdm.write('{}: File already exists. Skipping...'.format(movie_name))
+            self.pbar.write('{}: File already exists. Skipping...'.format(movie_name))
             print('file already exists')
             self.existing_file_counter += 1
             return False
@@ -252,18 +254,18 @@ class Scraper:
 
     # Is triggered when the script hits 10 consecutive existing files
     def __prompt_existing_files(self):
-        tqdm.write('Found 10 existing files in a row. Do you want to keep downloading? Y/N')
+        self.pbar.write('Found 10 existing files in a row. Do you want to keep downloading? Y/N')
         exit_answer = input()
 
         if exit_answer.lower() == 'n':
-            tqdm.write('Exiting...')
+            self.pbar.write('Exiting...')
             sys.exit(0)
         elif exit_answer.lower() == 'y':
-            tqdm.write('Continuing...')
+            self.pbar.write('Continuing...')
             self.existing_file_counter = 0
             self.skip_exit_condition = True
         else:
-            tqdm.write('Invalid input. Enter "Y" or "N".')
+            self.pbar.write('Invalid input. Enter "Y" or "N".')
 
     def download(self):
         self.__filterMoviesAndObtainTorrents()
