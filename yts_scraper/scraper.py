@@ -1,17 +1,14 @@
+from operator import truediv
 import os
 import sys
 import math
 import json
 import csv
 import requests
-import multiprocessing
 from tqdm import tqdm
 from fake_useragent import UserAgent
 from multiprocessing.dummy import Pool as ThreadPool
-
-def a(b):
-    while True:
-        print(b)
+from tabulate import tabulate
 
 class Scraper:
     """
@@ -44,6 +41,9 @@ class Scraper:
         self.torrent_count = 0
         self.movies = []
         self.torrentNumber = 1
+        self.numberOfPages = 0
+        self.hasObtainednumberOfPages = False
+        self.table = [["#","Name","Year","Format","Quality","Size","Hash"]]
 
         # Set output directory
 
@@ -98,11 +98,10 @@ class Scraper:
             print('Could not find any movies with given parameters')
             sys.exit(0)
         else:
-            print('Obtaining results...')
+            if self.view == True:
+                print('Displaying results...')
             if self.view == False and self.csv_only == False:
-                print('Found {} torrents. Download starting...\n'.format(self.torrent_count))
-            else:
-                print('Found {} torrents.'.format(self.torrent_count))
+                print('Download starting...\n')
 
         # Create progress bar
         if self.view == False and self.csv_only == False:
@@ -122,7 +121,10 @@ class Scraper:
             pool.map(self.__downloadMovie, movies)
         else:
             for movie in movies:
-                self.__downloadMovie(movie)           
+                self.__downloadMovie(movie)
+
+        if self.view:
+            print(tabulate(self.table, headers='firstrow', tablefmt='fancy_grid'))           
 
         if self.view == False and self.csv_only == False:
             self.pbar.close()
@@ -146,9 +148,10 @@ class Scraper:
             torrent_hash = movie_torrent.get('hash')
             torrent_url = movie_torrent.get('url')
             if self.view:
-                print('#' + str(self.torrentNumber) + ' ' + movie_name + ' (' + movie_type + ', ' + movie_quality +', ' + movie_size+') [' + torrent_hash + ']')
+                #print('#' + str(self.torrentNumber) + ' ' + movie_name + ' (' + movie_type + ', ' + movie_quality +', ' + movie_size+') [' + torrent_hash + ']')
+                self.table.append([str(self.torrentNumber),movie_name_short,year,movie_type,movie_quality,movie_size,torrent_hash])
             if self.csv_only:
-                self.__log_csv(movie_id, imdb_id, movie_name, year, language, movie_rating, movie_quality, yts_url, torrent_url, movie_type)
+                self.__log_csv(movie_id, imdb_id, movie_name_short, year, language, movie_rating, movie_quality, yts_url, torrent_url, movie_type)
             if self.view == False and self.csv_only == False:
                 bin_content_img = (requests.get(movie.get('large_cover_image'))).content if self.poster else None
                 bin_content_tor = (requests.get(torrent_url)).content
@@ -280,8 +283,9 @@ class Scraper:
         )
 
         numberOfTorrents = 0
-        i = 1
-        while(True):
+        i = self.page_arg
+
+        while(self.hasObtainednumberOfPages == False or i <= self.numberOfPages):
             url = '{}{}'.format(self.url, str(i))
             # Generate random user agent header
             try:
@@ -295,8 +299,14 @@ class Scraper:
                 print('There was an error connecting to yts. Try again.')
                 return
             movies = page_response.get('data').get('movies')
+            if (self.hasObtainednumberOfPages == False):               # let's set the limit
+                movie_count = int(page_response.get('data').get('movie_count'))
+                pages_count = int(movie_count / self.limit)
+                if (movie_count % self.limit > 0):
+                    pages_count = pages_count + 1
+                self.numberOfPages = pages_count
+                self.hasObtainednumberOfPages = True
             if movies == None:
-                self.torrent_count = numberOfTorrents
                 return
             j = 0
             while(j<len(movies)):
@@ -332,5 +342,10 @@ class Scraper:
             for movie in movies:
                 numberOfTorrents = numberOfTorrents + len(movie.get('torrents'))
             self.movies = self.movies + movies
-            print('Obtained {} torrents so far...'.format(str(numberOfTorrents)))
+            if (i < self.numberOfPages):
+                print('Obtained {} torrents so far... ({}/{})'.format(str(numberOfTorrents),str(i),str(self.numberOfPages)))
+            else:
+                print('Obtained {} torrents. ({}/{})'.format(str(numberOfTorrents),str(i),str(self.numberOfPages)))
             i = i + 1
+        self.torrent_count = numberOfTorrents
+
