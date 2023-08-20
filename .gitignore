@@ -4,3 +4,4 @@ test/
 YTS_Scraper.egg-info/
 *.torrent
 *.csv
+.DS_Store

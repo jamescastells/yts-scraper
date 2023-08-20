@@ -80,7 +80,7 @@ class Scraper:
         self.skip_exit_condition = False
 
         if self.view == False and self.csv_only == False:
-            print('Initializing download with these parameters:\n')
+            print('\nInitializing download with these parameters:\n')
             print('Directory:\t{}\nQuality:\t{}\nMovie Genre:\t{}\nMinimum Rating:\t{}\nCategorization:\t{}\nMinimum Year:\t{}\nStarting page:\t{}\nMovie posters:\t{}\nAppend IMDb ID:\t{}\nMultiprocess:\t{}\n'
                   .format(
                       self.directory,
