@@ -58,11 +58,11 @@ This command returns in a list, but does not download, all the "Captain America"
 
 `yts-scraper -t 'Captain America' -f "all" -q "all" -v`
 
-This command downloads every 1080p sci-fi movie and their posters with an IMDb score of 8 or higher, that has "spider" in its title, ripped from a Bluray, and store them in rating>genre structured subdirectories.
+This command downloads every 1080p sci-fi movie and their posters with an IMDb score of 8 or higher, that has "spider" in its title, ripped from a Bluray, and store them in rating>genre structured subdirectories:
 
 `yts-scraper -q 1080p -g sci-fi -r 8 -c rating-genre -b -t 'spider' -f bluray`
 
-This commands downloads every animation movie since 1990, which has a rating of 7 or more, puts it in a folder named "movies", which itself contains folders organized by rating; downloads its respective poster, and does everything in a multi-threaded fashion.
+This commands downloads every animation movie since 1990, which has a rating of 7 or more, puts it in a folder named "movies", which itself contains folders organized by rating; downloads its respective poster, and does everything with multi-threads:
 
 `yts-scraper -g animation -r 7 -y 1990 -o "movies" -b -c "rating" -m`
 
