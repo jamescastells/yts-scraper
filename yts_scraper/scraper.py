@@ -27,7 +27,7 @@ class Scraper:
         self.categorize = args.categorize_by
         self.sort_by = args.sort_by
         self.year_limit = args.year_limit
-        self.page_arg = args.page
+        self.page_arg = args.page if (args.page >= 1) else 1
         self.poster = args.background
         self.imdb_id = args.imdb_id
         self.multiprocess = args.multiprocess
@@ -40,12 +40,14 @@ class Scraper:
         self.existing_file_counter = None
         self.skip_exit_condition = None
         self.pbar = None
-        self.torrent_count = 0
         self.movies = []
         self.torrentNumber = 1
         self.numberOfPages = 0
-        self.hasObtainednumberOfPages = False
         self.table = [["#","Name","Year","Format","Quality","Size","Hash"]]
+
+        self.data = []
+        self.checkedPage = 0
+        self.numberOfTorrents = 0
 
         # Set output directory
 
@@ -96,7 +98,13 @@ class Scraper:
                       )
                  )
 
-        if self.torrent_count <= 0:
+        movies = []
+        
+        for data_item in self.data:
+            if data_item.get('movies') != None:
+                movies = movies + data_item.get('movies')
+
+        if len(movies) == 0:
             print('Could not find any movies with given parameters')
             sys.exit(0)
         else:
@@ -109,15 +117,13 @@ class Scraper:
         if self.view == False and self.csv_only == False:
 
             self.pbar = tqdm(
-                total=self.torrent_count,
+                total=self.numberOfTorrents,
                 position=1,
                 leave=True,
                 desc='Downloading',
                 unit='Files'
                 )
-            self.pbar.write(tabulate.tabulate(tabular_data=[],headers=['#'.ljust(len(str(self.torrent_count))-2), 'Movie name'.ljust(40), 'Year'.ljust(5), 'Format'.ljust(5), 'Quality'.ljust(5),'Size'.ljust(8),'Hash'.ljust(38)], tablefmt='orgtbl'))
-        movies = self.movies
-
+            self.pbar.write(tabulate.tabulate(tabular_data=[],headers=['#'.ljust(len(str(self.numberOfTorrents))-2), 'Movie name'.ljust(40), 'Year'.ljust(5), 'Format'.ljust(5), 'Quality'.ljust(5),'Size'.ljust(8),'Hash'.ljust(38)], tablefmt='orgtbl'))
         if self.multiprocess:
             pool = ThreadPool(10)
             pool.map(self.__downloadMovie, movies)
@@ -166,7 +172,7 @@ class Scraper:
                     path = self.__build_path(movie_name, movie_rating, movie_quality, None, imdb_id, torrent_hash, movie_type)
                     is_download_successful = self.__download_file(bin_content_tor, bin_content_img, path, movie_name, movie_id)
                 if is_download_successful:
-                    self.pbar.write(tabulate.tabulate(tabular_data=[[str(self.torrentNumber).ljust(max(len(str(self.torrent_count))-3,3)), movie_name_short.ljust(42)[:42], str(year).ljust(7), movie_type.ljust(8), movie_quality.ljust(9),movie_size.ljust(10),torrent_hash.ljust(40)[:40]]], tablefmt='orgtbl'))
+                    self.pbar.write(tabulate.tabulate(tabular_data=[[str(self.torrentNumber).ljust(max(len(str(self.numberOfTorrents))-3,3)), movie_name_short.ljust(42)[:42], str(year).ljust(7), movie_type.ljust(8), movie_quality.ljust(9),movie_size.ljust(10),torrent_hash.ljust(40)[:40]]], tablefmt='orgtbl'))
                     self.pbar.update()
             self.torrentNumber += 1
 
@@ -272,9 +278,7 @@ class Scraper:
         self.__initialize_download()
 
     def __filterMoviesAndObtainTorrents(self):
-
         print('Obtaining torrents...')
-
         self.url = '''https://yts.mx/api/v2/list_movies.json?genre={genre}&minimum_rating={minimum_rating}&sort_by={sort_by}&query_term={text}&order_by={order_by}&limit={limit}&page='''.format(
             genre=self.genre,
             minimum_rating=self.minimum_rating,
@@ -283,71 +287,78 @@ class Scraper:
             order_by=self.order_by,
             limit=self.limit
         )
-
-        numberOfTorrents = 0
         i = self.page_arg
+        self.checkedPage = i
+        self.__obtainData(i)
+        if self.multiprocess == True:
+            indexes = [n for n in range(i+1,self.numberOfPages+1)]
+            pool = ThreadPool(10)
+            pool.map(self.__obtainData, indexes)
+            while (self.checkedPage <= self.numberOfPages):
+                pass
+        else:
+            for n in range(i+1,self.numberOfPages+1):
+                self.__obtainData(n)
+        return
 
-        while(self.hasObtainednumberOfPages == False or i <= self.numberOfPages):
-            url = '{}{}'.format(self.url, str(i))
-            # Generate random user agent header
-            try:
-                user_agent = UserAgent()
-                headers = {'User-Agent': user_agent.random}
-            except:
-                print('Error occurred during fake user agent generation.')
-            try:
-                page_response = requests.get(url, timeout=5, verify=True, headers=headers).json()
-            except:
-                print('There was an error connecting to yts. Try again.')
-                return
-            movies = page_response.get('data').get('movies')
-            if (self.hasObtainednumberOfPages == False):               # let's set the limit
-                movie_count = int(page_response.get('data').get('movie_count'))
-                pages_count = int(movie_count / self.limit)
-                if (movie_count % self.limit > 0):
-                    pages_count = pages_count + 1
-                self.numberOfPages = pages_count
-                self.hasObtainednumberOfPages = True
-            if movies == None:
-                return
-            j = 0
-            while(j<len(movies)):
-                movie = movies[j]
-                if (movie.get('year')<self.year_limit):
+    def __obtainData(self,page):
+        url = '{}{}'.format(self.url, str(page))
+        try:
+            user_agent = UserAgent()
+            headers = {'User-Agent': user_agent.random}
+        except:
+            print('Error occurred during fake user agent generation.')
+        try:
+            page_response = requests.get(url, timeout=10, verify=True, headers=headers).json()
+        except:
+            print('There was an error connecting to yts. Try again.')
+            return
+        self.data.append(page_response.get('data'))
+        movie_count = int(self.data[0].get('movie_count'))
+        self.numberOfPages = int(movie_count / self.limit)
+        if (movie_count % self.limit > 0):
+            self.numberOfPages = self.numberOfPages + 1
+        if page > self.numberOfPages:
+            return
+        self.__filterMoviesByCriteria(page)
+        self.checkedPage = self.checkedPage + 1
+    
+    def __filterMoviesByCriteria(self,page):
+        movies = self.data[-1].get('movies')                                # Cleans up the last thing added to the data
+        j = 0
+        while(j<len(movies)):
+            movie = movies[j]
+            if (movie.get('year')<self.year_limit):
+                movies.remove(movie)
+                j = j - 1
+            if self.format != "all" and movie in movies:                    # remove all that's not the quality specified
+                torrents = movie.get('torrents')
+                x = 0
+                while (x < len(torrents)):
+                    torrent = torrents[x]
+                    if (torrent.get('type') != self.format):
+                        torrents.remove(torrent)
+                        x = x - 1
+                    x = x + 1
+                if len(torrents) == 0:
                     movies.remove(movie)
                     j = j - 1
-                if self.format != "all" and movie in movies:                    # remove all that's not the quality specified
-                    torrents = movie.get('torrents')
-                    x = 0
-                    while (x < len(torrents)):
-                        torrent = torrents[x]
-                        if (torrent.get('type') != self.format):
-                            torrents.remove(torrent)
-                            x = x - 1
-                        x = x + 1
-                    if len(torrents) == 0:
-                        movies.remove(movie)
-                        j = j - 1
-                if self.quality != "all" and movie in movies:       # remove all that's not the format specified  
-                    torrents = movie.get('torrents')
-                    x = 0
-                    while (x < len(torrents)):
-                        torrent = torrents[x]
-                        if (torrent.get('quality') != self.quality):
-                            torrents.remove(torrent)
-                            x = x - 1
-                        x = x + 1
-                    if len(torrents) == 0:
-                        movies.remove(movie)
-                        j = j - 1
-                j = j +1
-            for movie in movies:
-                numberOfTorrents = numberOfTorrents + len(movie.get('torrents'))
-            self.movies = self.movies + movies
-            if (i < self.numberOfPages):
-                print('Obtained {} torrents so far... ({}/{})'.format(str(numberOfTorrents),str(i),str(self.numberOfPages)))
-            else:
-                print('Obtained {} torrents. ({}/{})'.format(str(numberOfTorrents),str(i),str(self.numberOfPages)))
-            i = i + 1
-        self.torrent_count = numberOfTorrents
-
+            if self.quality != "all" and movie in movies:       # remove all that's not the format specified  
+                torrents = movie.get('torrents')
+                x = 0
+                while (x < len(torrents)):
+                    torrent = torrents[x]
+                    if (torrent.get('quality') != self.quality):
+                        torrents.remove(torrent)
+                        x = x - 1
+                    x = x + 1
+                if len(torrents) == 0:
+                    movies.remove(movie)
+                    j = j - 1
+            j = j + 1
+        for movie in movies:
+            self.numberOfTorrents =self.numberOfTorrents + len(movie.get('torrents'))
+        if (self.checkedPage < self.numberOfPages):
+            print('Obtained {} torrents so far... (Page {} of {})'.format(str(self.numberOfTorrents),str(page),str(self.numberOfPages)))
+        else:
+            print('Obtained {} torrents. (Page {} of {})'.format(str(self.numberOfTorrents),str(page),str(self.numberOfPages)))
