@@ -48,6 +48,8 @@ class Scraper:
         self.data = []
         self.checkedPage = 0
         self.numberOfTorrents = 0
+        
+        self.numberOfTries = 0
 
         # Set output directory
 
@@ -290,6 +292,9 @@ class Scraper:
         i = self.page_arg
         self.checkedPage = i
         self.__obtainData(i)
+        if self.numberOfPages == 0:          # never set, must have been an error
+            self.__filterMoviesAndObtainTorrents()
+            return
         if self.multiprocess == True:
             indexes = [n for n in range(i+1,self.numberOfPages+1)]
             pool = ThreadPool(10)
@@ -310,14 +315,25 @@ class Scraper:
             print('Error occurred during fake user agent generation.')
         try:
             page_response = requests.get(url, timeout=10, verify=True, headers=headers).json()
-        except:
-            print('There was an error connecting to yts. Try again.')
-            return
+        except Exception as error:
+            if self.numberOfPages == 0:                              # this was never set
+                if self.numberOfTries > 10:
+                    print('Number of tries exceded. Exiting.')
+                    sys.exit(0)
+                else:
+                    print('First connection failed. Trying again from start...')
+                    self.numberOfTries += 1
+                return
+            else:
+                print('There was an error connecting to yts. Skipping page. (Page {} of {})'.format(str(self.checkedPage),str(self.numberOfPages)))
+                self.checkedPage = self.checkedPage + 1
+                return
         self.data.append(page_response.get('data'))
-        movie_count = int(self.data[0].get('movie_count'))
-        self.numberOfPages = int(movie_count / self.limit)
-        if (movie_count % self.limit > 0):
-            self.numberOfPages = self.numberOfPages + 1
+        if self.numberOfPages == 0:                                 # set how many times we'll do this process
+            movie_count = int(self.data[0].get('movie_count'))
+            self.numberOfPages = int(movie_count / self.limit)
+            if (movie_count % self.limit > 0):
+                self.numberOfPages = self.numberOfPages + 1
         if page > self.numberOfPages:
             return
         self.__filterMoviesByCriteria(page)
